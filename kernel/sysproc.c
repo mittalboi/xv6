@@ -100,3 +100,36 @@ sys_strace(void)
   myproc()->mask = mask;
   return 0;
 }
+
+uint64 sys_sigalarm(void)
+{
+  uint64 addr;
+  int ticks;
+
+  printf("\nsys_sigalarm\n");
+
+  argint(0, &ticks);
+  argaddr(0, &addr);
+
+  printf("ticks: %d\n", ticks);
+  printf("addr: %p\n", addr);
+  myproc()->ticks = ticks;
+  myproc()->handler = addr;
+
+  printf("myproc()->ticks: %d\n", myproc()->ticks);
+  printf("myproc()->handler: %p\n", myproc()->handler);
+
+  return 0;
+}
+
+uint64 sys_sigreturn(void)
+{
+  struct proc *p = myproc();
+  memmove(p->trapframe, p->alarm_tf, PGSIZE);
+
+  kfree(p->alarm_tf);
+  p->alarm_tf = 0;
+  p->alarm_on = 0;
+  p->cur_ticks = 0;
+  return p->trapframe->a0;
+}
