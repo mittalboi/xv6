@@ -133,3 +133,12 @@ uint64 sys_sigreturn(void)
   p->cur_ticks = 0;
   return p->trapframe->a0;
 }
+
+uint64 sys_settickets(void)
+{
+  struct proc *p = myproc();
+  int tickets;
+  argint(0, &tickets);
+  p->tickets = tickets;
+  return tickets;
+}

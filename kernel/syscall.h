@@ -23,4 +23,5 @@
 #define SYS_strace  22
 #define SYS_sigalarm 23
 #define SYS_sigreturn 24
+#define SYS_settickets 25
 

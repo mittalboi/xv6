@@ -25,6 +25,7 @@ int uptime(void);
 int strace(int);
 void sigalarm(int, void (*)(void));
 void sigreturn(void);
+int settickets(int);
 
 
 // ulib.c
