@@ -12,7 +12,13 @@
 void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
-                   // defined by kernel.ld.
+                   // defined by kernel.ld.     
+struct reference{
+  struct spinlock lock;
+  long long int count;
+};
+
+struct reference ref[PHYSTOP/PGSIZE];
 
 struct run {
   struct run *next;
@@ -27,6 +33,10 @@ void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
+  for(int i=0;i<PHYSTOP/PGSIZE;i++){
+    initlock(&ref[i].lock,"ref");
+    ref[i].count=0;
+  }
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -75,8 +85,47 @@ kalloc(void)
   if(r)
     kmem.freelist = r->next;
   release(&kmem.lock);
+  
+  /* if(ref[(uint64)r/PGSIZE].count != 0)
+    panic("kalloc: page is in use"); */
+  acquire(&ref[(uint64)r/PGSIZE].lock);
+  //acquire(&kmem.lock);
+  ref[(uint64)r/PGSIZE].count = 1;
+  release(&ref[(uint64)r/PGSIZE].lock);
+  //release(&kmem.lock);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
+}
+
+void
+increment_ref_count(uint64 pa)
+{
+  if(pa > PHYSTOP)
+    panic("increment_ref_count: pa > PHYSTOP");
+
+  //acquire(&ref[(uint64)pa/PGSIZE].lock);
+  acquire(&kmem.lock);
+  ref[pa/PGSIZE].count++;
+  // release(&ref[(uint64)pa/PGSIZE].lock);
+  release(&kmem.lock);
+}
+
+void
+decrement_ref_count(uint64 pa)
+{
+  if(pa > PHYSTOP)
+    panic("increment_ref_count: pa > PHYSTOP");
+
+  // acquire(&ref[(uint64)pa/PGSIZE].lock);
+  acquire(&kmem.lock);
+  ref[pa/PGSIZE].count--;
+  // release(&ref[(uint64)pa/PGSIZE].lock);
+  
+
+  
+  release(&kmem.lock);
+  if(ref[pa/PGSIZE].count == 0)
+    kfree((void*)pa);
 }
