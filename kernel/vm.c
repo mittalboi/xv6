@@ -185,8 +185,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       panic("uvmunmap: not a leaf");
     if(do_free){
       uint64 pa = PTE2PA(*pte);
-      //kfree((void*)pa);
-      decrement_ref_count(pa);
+      kfree((void*)pa);
     }
     *pte = 0;
   }
@@ -241,8 +240,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
     }
     memset(mem, 0, PGSIZE);
     if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_R|PTE_U|xperm) != 0){
-      //kfree(mem);
-      decrement_ref_count((uint64)(mem));
+      kfree(mem);
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
@@ -285,8 +283,7 @@ freewalk(pagetable_t pagetable)
       panic("freewalk: leaf");
     }
   }
-  //kfree((void*)pagetable);
-  decrement_ref_count((uint64)(pagetable));
+  kfree((void*)pagetable);
 }
 
 // Free user memory pages,
@@ -305,7 +302,7 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 // physical memory.
 // returns 0 on success, -1 on failure.
 // frees any allocated pages on failure.
-/* int
+int
 uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
   pte_t *pte;
@@ -327,46 +324,6 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
       kfree(mem);
       goto err;
     }
-  }
-  return 0;
-
- err:
-  uvmunmap(new, 0, i / PGSIZE, 1);
-  return -1;
-}*/
-
-// makes the child process point to the
-// same physical pages as the parent.
-// returns 0 on success, -1 on failure.
-int
-uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
-{
-  pte_t *pte;
-  uint64 pa, i;
-  uint flags;
-  //char *mem;
-
-  for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walk(old, i, 0)) == 0)
-      panic("uvmcopy: pte should exist");
-    if((*pte & PTE_V) == 0)
-      panic("uvmcopy: page not present");
-    pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
-    flags &= ~(PTE_W);
-    flags |= PTE_COW;
-    sfence_vma();
-
-    if(mappages(new, i, PGSIZE, pa, flags) != 0){
-      //kfree(mem);
-      goto err;
-    }
-    increment_ref_count(pa);
-
-    // uvmunmap(old, i, 1, 0);
-    // if(mappages(old, i, PGSIZE, pa, flags) != 0){
-    //   goto err;
-    // }
   }
   return 0;
 

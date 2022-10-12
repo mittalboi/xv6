@@ -63,8 +63,6 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
-void            increment_ref_count(uint64 pa);
-void            decrement_ref_count(uint64 pa);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -149,7 +147,6 @@ void            trapinit(void);
 void            trapinithart(void);
 extern struct spinlock tickslock;
 void            usertrapret(void);
-void            tpgflt(void);
 
 // uart.c
 void            uartinit(void);
