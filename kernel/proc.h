@@ -107,8 +107,10 @@ struct proc {
   uint64 starttime;
   uint64 runtime;
   uint64 sleeptime;
-  uint64 endtime;
+  uint64 stoptime;
   uint64 totruntime;
+  uint64 niceness;
+  uint64 numberstopped;
 
   int tickets;
 

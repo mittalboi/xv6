@@ -39,4 +39,5 @@ entry("uptime");
 entry("strace");
 entry("sigalarm");
 entry("sigreturn");
-entry("settickets")
+entry("settickets");
+entry("setpriority");
