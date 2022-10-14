@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "rand.h"
 
 struct cpu cpus[NCPU];
 
@@ -124,6 +125,19 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->cur_ticks = 0;
+  p->timecreated = ticks;
+  // p->staticpriority = 60;
+  // p->dynamicpriority = 60;
+  p->numberscheduled = 0;
+  p->starttime = 0;
+  p->runtime = 0;
+  p->sleeptime = 0;
+  p->stoptime = 0;
+  p->totruntime = 0;
+  p->numberstopped = 0;
+
+  p->tickets = 1;
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -300,6 +314,8 @@ fork(void)
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
+  np->mask = p->mask;
+
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
@@ -435,6 +451,28 @@ wait(uint64 addr)
   }
 }
 
+int setpriority(int newp, int pid)
+{
+    struct proc *p;
+    int oldp;
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+        acquire(&p->lock);
+
+        if (p->pid == pid)
+        {
+            oldp = p->staticpriority;
+            p->staticpriority = newp;
+            p->runtime = 0;
+            p->stoptime = 0;
+            release(&p->lock);
+            return oldp;
+        }
+        release(&p->lock);
+    }
+    return -1;
+}
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -470,6 +508,159 @@ scheduler(void)
       release(&p->lock);
     }
   }
+#endif
+
+#ifdef FCFS
+  for (;;)
+  {
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    struct proc *min = 0;
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE)
+      {
+        if (min == 0)
+        {
+          min = p;
+        }
+        else if (p->timecreated < min->timecreated)
+        {
+          min = p;
+        }
+      }
+      release(&p->lock);
+    }
+    if (min != 0)
+    {
+      acquire(&min->lock);
+      if (min->state == RUNNABLE)
+      {
+        min->state = RUNNING;
+        c->proc = min;
+        swtch(&c->context, &min->context);
+        c->proc = 0;
+      }
+      release(&min->lock);
+    }
+  }
+#endif
+
+#ifdef LBS
+  //lottery based scheduler
+  for(;;)
+  {
+    intr_on();
+    int total_tickets = 0;
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE)
+      {
+        total_tickets += p->tickets;
+      }
+      release(&p->lock);
+    }
+    if (total_tickets > 0)
+    {
+      int winner = random_at_most(total_tickets);
+      int current = 0;
+      for (p = proc; p < &proc[NPROC]; p++)
+      {
+        acquire(&p->lock);
+        if (p->state == RUNNABLE)
+        {
+          current += p->tickets;
+          if (current >= winner)
+          {
+            p->state = RUNNING;
+            c->proc = p;
+            swtch(&c->context, &p->context);
+            c->proc = 0;
+            break;
+          }
+        }
+        release(&p->lock);
+      }
+    }
+  }
+#endif
+
+#ifdef PBS
+  //priority based scheduler
+  for(;;)
+  {
+    intr_on();
+    struct proc *temp = 0;
+    
+    for(p = proc; p < &proc[NPROC]; p++)
+    {
+      if(p->runtime == 0 && p->stoptime == 0)
+      {
+        p->niceness = 0;
+      }
+      else
+      {
+        p->niceness = 10 * (p->stoptime)/(p->runtime + p->stoptime);
+      }
+      p->dynamicpriority = p->staticpriority - p->niceness + 5;
+      if(p->dynamicpriority > 100)
+      {
+        p->dynamicpriority = 100;
+      }
+      if(p->dynamicpriority < 0)
+      {
+        p->dynamicpriority = 0;
+      }
+
+      acquire(&p->lock);
+      if(p->state == RUNNABLE)
+      {
+        if(temp == 0)
+        {
+          temp = p;
+        }
+        else if(p->dynamicpriority < temp->dynamicpriority)
+        {
+          temp = p;
+        }
+
+        else if(temp->dynamicpriority == p->dynamicpriority)
+        {
+          if(p->numberscheduled > temp->numberscheduled)
+          {
+            temp = p;
+          }
+          else if(p->dynamicpriority == temp->dynamicpriority)
+          {
+            if(p->timecreated <= temp->timecreated)
+            {
+              temp = p;
+            }
+          } 
+        }
+      }
+      release(&p->lock);
+    }
+
+    if(temp)
+    {
+      acquire(&temp->lock);
+      if(temp->state == RUNNABLE)
+      {
+        temp->state = RUNNING;
+        ++temp->numberscheduled;
+        c->proc = temp;
+        swtch(&c->context, &temp->context);
+        c->proc = 0;
+      }
+      release(&temp->lock);
+    }
+  }
+#endif
+
 }
 
 // Switch to scheduler.  Must hold only p->lock

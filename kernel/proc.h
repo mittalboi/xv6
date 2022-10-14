@@ -92,6 +92,28 @@ struct proc {
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
 
+  int mask;                    // Mask for signal tracing
+
+  uint64 handler;
+  int ticks;
+  int cur_ticks;
+  struct trapframe *alarm_tf; // cache the trapframe when timer fires
+  int alarm_on;
+
+  uint64 timecreated;
+  uint64 staticpriority;
+  uint64 dynamicpriority;
+  uint64 numberscheduled;
+  uint64 starttime;
+  uint64 runtime;
+  uint64 sleeptime;
+  uint64 stoptime;
+  uint64 totruntime;
+  uint64 niceness;
+  uint64 numberstopped;
+
+  int tickets;
+
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process
 

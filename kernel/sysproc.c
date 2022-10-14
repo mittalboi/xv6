@@ -89,3 +89,62 @@ sys_uptime(void)
   release(&tickslock);
   return xticks;
 }
+
+uint64
+sys_strace(void)
+{
+  int mask = 0;
+  argint(0, &mask);
+  myproc()->mask = mask;
+  return 0;
+}
+
+uint64 sys_sigalarm(void)
+{
+  uint64 addr;
+  int ticks;
+
+  printf("\nsys_sigalarm\n");
+
+  argint(0, &ticks);
+  argaddr(0, &addr);
+
+  printf("ticks: %d\n", ticks);
+  printf("addr: %p\n", addr);
+  myproc()->ticks = ticks;
+  myproc()->handler = addr;
+
+  printf("myproc()->ticks: %d\n", myproc()->ticks);
+  printf("myproc()->handler: %p\n", myproc()->handler);
+
+  return 0;
+}
+
+uint64 sys_sigreturn(void)
+{
+  struct proc *p = myproc();
+  memmove(p->trapframe, p->alarm_tf, PGSIZE);
+
+  kfree(p->alarm_tf);
+  p->alarm_tf = 0;
+  p->alarm_on = 0;
+  p->cur_ticks = 0;
+  return p->trapframe->a0;
+}
+
+uint64 sys_settickets(void)
+{
+  struct proc *p = myproc();
+  int tickets;
+  argint(0, &tickets);
+  p->tickets = tickets;
+  return tickets;
+}
+
+uint64 sys_setpriority(void)
+{
+  int new_priority, pid;
+  argint(1, &new_priority);
+  argint(0, &pid);
+  return setpriority(new_priority, pid);
+}
