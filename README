@@ -47,3 +47,76 @@ You will need a RISC-V "newlib" tool chain from
 https://github.com/riscv/riscv-gnu-toolchain, and qemu compiled for
 riscv64-softmmu.  Once they are installed, and in your shell
 search path, you can run "make qemu".
+
+# Enhancing the OS xv6
+
+## 1. System Calls
+
+### Trace:
+
+#### Input Command:
+```jsx
+strace mask command [args]
+```
+
+#### Changes:
+**in kernel/sysproc.c:**
+
+The mask is set to 0 to begin with. We then use `argint()` to collect the user's command line parameters and set the mask variable accordingly, before checking for command success and handling errors appropriately. We now set the process's trace mask to the value of the mask variable, which was passed as a parameter.
+
+
+**kernel/proc.c:**
+
+As an additional precaution, the trace mask must be passed down from parent to child processes when forking.
+
+```jsx
+// copy saved trace mask from parent to child
+  np->systrackmask = p->systrackmask;
+```
+
+**kernel/syscall.c:**
+
+Two arrays are required in this case. One is responsible for determining the names of the syscalls to be printed ('syscall names') and another is responsible for storing the number of valid arguments ('syscall number') that each of these syscalls accepts.
+
+We use 'argraw(),' which returns the raw value of the i-th argument from the registers, to put the arguments in array 'arrayarg'. If both mask and 'num' are set, we proceed to the next step. When these requirements are satisfied, the command "strace" is run.
+
+We then proceed to print:
+
+1. The process id ⇒ `p->pid`
+2. The name of the system call ⇒ using `syscall_names`
+3. The decimal value of the arguments(xv6 passes arguments via registers) ⇒ using `arrayarg` which stores the values.
+4. The return value of the syscall ⇒ `p->trapframe->a0` 
+
+
+**user/strace.c:**
+
+Here, we take in the parameters that were passed through the command line and handle any errors that may arise. The command line input string was also converted to an integer. After that, we provide the parameters to strace, which then uses them to initiate a call to the kernel's sys trace function and set the mask. The necessary output may now be printed using this syscall().
+
+
+### Sigalarm and Sigreturn:
+
+To test the working of sigalarm and sigreturn, we have used a program called 'alarmtest.c' and is located in the user directory.
+
+#### Input Command:
+```jsx
+alarmtest
+```
+
+#### Changes:
+
+**kernel/sysproc.c:**
+
+Here we define two system calls: sigalarm and sigreturn, which are necessary for the periodic alerting a process as it uses CPU time. The sigalarm system call is used to set the time interval for the periodic alerting. The sigreturn system call is used to return from the signal handler. In the sigalarm function, we have two variables, ticks and addr, for which we use argint() to collect the user's command line parameters. We then check for command success and handle errors appropriately. We now set the process's alarmticks to the value of the ticks variable, which was passed as a parameter. We also set the process's alarmhandler to the value of the addr variable, which was passed as a parameter. Accordingly, the ticks and address for the process variable is set.
+
+In the sigreturn function, we reset the variables that might have been changed in the handler. We then check for command success and handle errors appropriately. We now set the process's trapframe to the value of the addr variable, which was passed as a parameter. Accordingly, the trapframe for the process variable is set.
+
+**kernel/syscall.c:**
+
+We add the two syscalls to our previously defined arrays, along with the number of arguments that each syscall accepts.
+
+**kernel/trap.c:**
+
+Here we edit both usertrap and kernel trap to add our function, in which we store the trapframe in a local variable trapframe. This local variable is then used to set the alarm trapframe of the process variable, used throughout the function. 
+
+We also set the alarm_on variable, indicating that the handler has been called and used properly. We also keep a track of the ticks of CPU time that the program consumes. When a process calls the alarm function, it checks if the current ticks are greater than the previously initialised ticks. If the former is greater, the trapframe of the process variable sets itself accordingly.
+
