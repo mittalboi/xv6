@@ -305,46 +305,12 @@ uvmfree(pagetable_t pagetable, uint64 sz)
 // physical memory.
 // returns 0 on success, -1 on failure.
 // frees any allocated pages on failure.
-/* int
-uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
-{
-  pte_t *pte;
-  uint64 pa, i;
-  uint flags;
-  char *mem;
-
-  for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walk(old, i, 0)) == 0)
-      panic("uvmcopy: pte should exist");
-    if((*pte & PTE_V) == 0)
-      panic("uvmcopy: page not present");
-    pa = PTE2PA(*pte);
-    flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
-      goto err;
-    }
-  }
-  return 0;
-
- err:
-  uvmunmap(new, 0, i / PGSIZE, 1);
-  return -1;
-}*/
-
-// makes the child process point to the
-// same physical pages as the parent.
-// returns 0 on success, -1 on failure.
 int
 uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 {
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  //char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
@@ -352,21 +318,15 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
+    *pte &= ~PTE_W;
+    *pte |= PTE_COW;
     flags = PTE_FLAGS(*pte);
-    flags &= ~(PTE_W);
-    flags |= PTE_COW;
     sfence_vma();
 
     if(mappages(new, i, PGSIZE, pa, flags) != 0){
-      //kfree(mem);
       goto err;
     }
     increment_ref_count(pa);
-
-    // uvmunmap(old, i, 1, 0);
-    // if(mappages(old, i, PGSIZE, pa, flags) != 0){
-    //   goto err;
-    // }
   }
   return 0;
 

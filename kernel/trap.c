@@ -234,8 +234,13 @@ tpgflt(void)
   // get the address that caused the fault
   uint64 start_va = PGROUNDDOWN(r_stval());
 
+  if(start_va == 0){
+    printf("tpgflt: start_va is 0\n");
+    setkilled(p);
+    return;
+  }
   if(start_va >= MAXVA){
-    printf("tgpflt: address is too big\n");
+    printf("tpgflt: address is too big\n");
     setkilled(p);
     return;
   }
