@@ -28,7 +28,8 @@ OBJS = \
   $K/sysfile.o \
   $K/kernelvec.o \
   $K/plic.o \
-  $K/virtio_disk.o
+  $K/virtio_disk.o \
+  $K/rand.o \
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -51,6 +52,12 @@ endif
 SCHEDULER_MACRO = -D RR
 ifeq ($(SCHEDULER), FCFS)
     SCHEDULER_MACRO = -D FCFS
+endif
+ifeq ($(SCHEDULER), LBS)
+    SCHEDULER_MACRO = -D LBS
+endif
+ifeq ($(SCHEDULER), PBS)
+    SCHEDULER_MACRO = -D PBS
 endif
 
 QEMU = qemu-system-riscv64
@@ -140,6 +147,7 @@ UPROGS=\
 	$U/_zombie\
 	$U/_strace\
 	$U/_alarmtest\
+	$U/_setpriority\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

@@ -101,6 +101,7 @@ extern uint64 sys_strace(void);
 extern uint64 sys_sigalarm(void);
 extern uint64 sys_sigreturn(void);
 extern uint64 sys_settickets(void);
+extern uint64 sys_setpriority(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -130,6 +131,7 @@ static uint64 (*syscalls[])(void) = {
     [SYS_sigalarm] sys_sigalarm,
     [SYS_sigreturn] sys_sigreturn,
     [SYS_settickets] sys_settickets,
+    [SYS_setpriority] sys_setpriority,
 };
 
 char *system_call_name[] = {
@@ -158,14 +160,16 @@ char *system_call_name[] = {
     "trace",
     "sigalarm",
     "sigreturn",
+    "setpriority",
 };
 
-static int argnums[25] = {
+static int argnums[30] = {
     1, 1, 1, 1, 3,
     3, 1, 2, 2, 1,
     1, 1, 1, 1, 1,
     2, 3, 3, 1, 2,
-    1, 1, 1, 2, 0};
+    1, 1, 1, 2, 0,
+    2};
 
 void syscall(void)
 {
