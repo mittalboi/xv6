@@ -265,9 +265,65 @@ int devintr()
     w_sip(r_sip() & ~2);
 
     return 2;
-  }
-  else
-  {
+  } else {
     return 0;
+}
+
+void
+tpgflt(void)
+{
+  struct proc *p = myproc();
+  pte_t *p_pte;
+  uint64 pa;
+  uint flags_p;
+  char* mem;
+
+  // get the address that caused the fault
+  uint64 start_va = PGROUNDDOWN(r_stval());
+
+  if(start_va == 0){
+    printf("tpgflt: start_va is 0\n");
+    setkilled(p);
+    return;
   }
+  if(start_va >= MAXVA){
+    printf("tpgflt: address is too big\n");
+    setkilled(p);
+    return;
+  }
+  
+  if((p_pte = walk(p->pagetable, start_va, 0)) == 0)
+    panic("tpgflt: pte should exist");
+  if((*p_pte & PTE_V) == 0)
+    panic("tpgflt: page not present");
+  pa = PTE2PA(*p_pte);
+  if((mem = kalloc()) == 0)
+      goto err;
+      // return;
+
+  flags_p = PTE_FLAGS(*p_pte);
+  flags_p |= PTE_W;
+  flags_p &= ~(PTE_COW);
+
+  memmove((void*)mem, (void*)pa, PGSIZE);
+  *p_pte = PA2PTE(mem) | PTE_U | PTE_V | PTE_W | PTE_R | PTE_X ;
+  *p_pte &= ~(PTE_COW);
+  sfence_vma();
+  decrement_ref_count(pa);
+  
+  // uvmunmap(p->pagetable, start_va, 1, 0);
+  // decrement_ref_count(pa);
+  // if(mappages(p->pagetable, start_va, PGSIZE, (uint64)mem, flags_p) != 0){
+    //kfree(mem);
+    // p->killed = 1;
+    // setkilled(p);
+    // goto err;
+  // }
+
+  return;
+
+  err:
+    //uvmunmap(p->pagetable, start_va, 1, 1);
+    setkilled(p);
+    return;
 }
