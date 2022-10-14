@@ -464,13 +464,15 @@ sys_exec(void)
   int ret = exec(path, argv);
 
   for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
-    kfree(argv[i]);
+    //kfree(argv[i]);
+    decrement_ref_count((uint64)(argv[i]));
 
   return ret;
 
  bad:
   for(i = 0; i < NELEM(argv) && argv[i] != 0; i++)
-    kfree(argv[i]);
+    //kfree(argv[i]);
+    decrement_ref_count((uint64)(argv[i]));
   return -1;
 }
 

@@ -185,7 +185,8 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       panic("uvmunmap: not a leaf");
     if(do_free){
       uint64 pa = PTE2PA(*pte);
-      kfree((void*)pa);
+      //kfree((void*)pa);
+      decrement_ref_count(pa);
     }
     *pte = 0;
   }
@@ -240,7 +241,8 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
     }
     memset(mem, 0, PGSIZE);
     if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_R|PTE_U|xperm) != 0){
-      kfree(mem);
+      //kfree(mem);
+      decrement_ref_count((uint64)(mem));
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
@@ -283,7 +285,8 @@ freewalk(pagetable_t pagetable)
       panic("freewalk: leaf");
     }
   }
-  kfree((void*)pagetable);
+  //kfree((void*)pagetable);
+  decrement_ref_count((uint64)(pagetable));
 }
 
 // Free user memory pages,
@@ -308,7 +311,6 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   pte_t *pte;
   uint64 pa, i;
   uint flags;
-  char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
@@ -316,14 +318,15 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
+    *pte &= ~PTE_W;
+    *pte |= PTE_COW;
     flags = PTE_FLAGS(*pte);
-    if((mem = kalloc()) == 0)
-      goto err;
-    memmove(mem, (char*)pa, PGSIZE);
-    if(mappages(new, i, PGSIZE, (uint64)mem, flags) != 0){
-      kfree(mem);
+    sfence_vma();
+
+    if(mappages(new, i, PGSIZE, pa, flags) != 0){
       goto err;
     }
+    increment_ref_count(pa);
   }
   return 0;
 
