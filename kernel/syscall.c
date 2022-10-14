@@ -101,6 +101,10 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
+extern uint64 sys_trace(void);
+extern uint64 sys_waitx(void);
+extern uint64 sys_settickets(void);
+extern uint64 sys_setpriority(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
@@ -126,6 +130,27 @@ static uint64 (*syscalls[])(void) = {
 [SYS_link]    sys_link,
 [SYS_mkdir]   sys_mkdir,
 [SYS_close]   sys_close,
+[SYS_trace]   sys_trace,
+[SYS_waitx]   sys_waitx,
+[SYS_settickets]   sys_settickets,
+[SYS_setpriority]   sys_setpriority,
+};
+
+
+static char *syscall_list[25] = {
+  "-",      "fork",     "exit",     "wait",         "pipe",  
+  "read",   "kill",     "exec",     "fstat",        "chdir", 
+  "dup",    "getpid",   "sbrk",     "sleep",        "uptime", 
+  "open",   "write",    "mknod",    "unlink",       "link",   
+  "mkdir",  "close",    "waitx" ,   "setpriority",  "trace"
+};
+
+static int numargs[25] = {
+  1,  1,  1,   1,   3,  
+  3,  1,  2,   2,   1, 
+  1,  1,  1,   1,   1, 
+  2,  3,  3,   1,   2, 
+  1, 1,   3 ,  2,   1
 };
 
 void
@@ -136,12 +161,21 @@ syscall(void)
 
   num = p->trapframe->a7;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    // Use num to lookup the system call function for num, call it,
-    // and store its return value in p->trapframe->a0
+    int x = p->trapframe->a0;
     p->trapframe->a0 = syscalls[num]();
-  } else {
+    if (p->sysmask & (1 << num))
+    {
+        if(numargs[num]==1)
+            printf("%d: syscall %s (%d) -> %d\n", p->pid, syscall_list[num], x, p->trapframe->a0);
+        if(numargs[num]==2)
+            printf("%d: syscall %s (%d %d) -> %d\n", p->pid, syscall_list[num], x,p->trapframe->a1, p->trapframe->a0);
+        if(numargs[num]==3)
+            printf("%d: syscall %s (%d %d %d) -> %d\n", p->pid, syscall_list[num], x,p->trapframe->a1,p->trapframe->a2, p->trapframe->a0);
+    } 
+  } else 
+  {
     printf("%d %s: unknown sys call %d\n",
-            p->pid, p->name, num);
+        p->pid, p->name, num);
     p->trapframe->a0 = -1;
   }
 }

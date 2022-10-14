@@ -61,8 +61,10 @@ void            ramdiskrw(struct buf*);
 
 // kalloc.c
 void*           kalloc(void);
-void            kfree(void *);
+void            actualkfree(void *);
 void            kinit(void);
+void            increment_ref_count(uint64 pa);
+void            kfree(uint64 pa);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -101,11 +103,14 @@ void            sched(void);
 void            sleep(void*, struct spinlock*);
 void            userinit(void);
 int             wait(uint64);
+int             waitx(uint64, uint*, uint*);
 void            wakeup(void*);
 void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+void            update_time(void);
+int             setpriority(int,int);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
@@ -147,6 +152,7 @@ void            trapinit(void);
 void            trapinithart(void);
 extern struct spinlock tickslock;
 void            usertrapret(void);
+void            tpgflt(void);
 
 // uart.c
 void            uartinit(void);
