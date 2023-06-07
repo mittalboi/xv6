@@ -28,8 +28,7 @@ OBJS = \
   $K/sysfile.o \
   $K/kernelvec.o \
   $K/plic.o \
-  $K/virtio_disk.o \
-  $K/rand.o \
+  $K/virtio_disk.o
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -49,7 +48,6 @@ TOOLPREFIX := $(shell if riscv64-unknown-elf-objdump -i 2>&1 | grep 'elf64-big' 
 	echo "***" 1>&2; exit 1; fi)
 endif
 
-
 SCHEDULER_MACRO = -D RR
 ifeq ($(SCHEDULER), FCFS)
     SCHEDULER_MACRO = -D FCFS
@@ -60,7 +58,6 @@ endif
 ifeq ($(SCHEDULER), PBS)
     SCHEDULER_MACRO = -D PBS
 endif
-
 
 QEMU = qemu-system-riscv64
 
@@ -76,6 +73,7 @@ CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
 CFLAGS += -I.
 CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
+CFLAGS += $(SCHEDULER_MACRO)
 
 # Disable PIE when possible (for Ubuntu 16.10 toolchain)
 ifneq ($(shell $(CC) -dumpspecs 2>/dev/null | grep -e '[^f]no-pie'),)
@@ -140,16 +138,17 @@ UPROGS=\
 	$U/_ls\
 	$U/_mkdir\
 	$U/_rm\
+	$U/_schedulertest\
 	$U/_sh\
 	$U/_stressfs\
 	$U/_usertests\
-	$U/_cowtest\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
 	$U/_strace\
+	$U/_time\
 	$U/_alarmtest\
-	$U/_setpriority\
+	$U/_cowtest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

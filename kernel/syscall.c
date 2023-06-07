@@ -101,93 +101,87 @@ extern uint64 sys_unlink(void);
 extern uint64 sys_link(void);
 extern uint64 sys_mkdir(void);
 extern uint64 sys_close(void);
-extern uint64 sys_strace(void);
-extern uint64 sys_sigalarm(void);
-extern uint64 sys_sigreturn(void);
+extern uint64 sys_trace(void);
+extern uint64 sys_waitx(void);
 extern uint64 sys_settickets(void);
 extern uint64 sys_setpriority(void);
+extern uint64 sys_sigalarm(void);
+extern uint64 sys_sigreturn(void);
 
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
 static uint64 (*syscalls[])(void) = {
-    [SYS_fork] sys_fork,
-    [SYS_exit] sys_exit,
-    [SYS_wait] sys_wait,
-    [SYS_pipe] sys_pipe,
-    [SYS_read] sys_read,
-    [SYS_kill] sys_kill,
-    [SYS_exec] sys_exec,
-    [SYS_fstat] sys_fstat,
-    [SYS_chdir] sys_chdir,
-    [SYS_dup] sys_dup,
-    [SYS_getpid] sys_getpid,
-    [SYS_sbrk] sys_sbrk,
-    [SYS_sleep] sys_sleep,
-    [SYS_uptime] sys_uptime,
-    [SYS_open] sys_open,
-    [SYS_write] sys_write,
-    [SYS_mknod] sys_mknod,
-    [SYS_unlink] sys_unlink,
-    [SYS_link] sys_link,
-    [SYS_mkdir] sys_mkdir,
-    [SYS_close] sys_close,
-    [SYS_strace] sys_strace,
-    [SYS_sigalarm] sys_sigalarm,
-    [SYS_sigreturn] sys_sigreturn,
-    [SYS_settickets] sys_settickets,
-    [SYS_setpriority] sys_setpriority,
+[SYS_fork]    sys_fork,
+[SYS_exit]    sys_exit,
+[SYS_wait]    sys_wait,
+[SYS_pipe]    sys_pipe,
+[SYS_read]    sys_read,
+[SYS_kill]    sys_kill,
+[SYS_exec]    sys_exec,
+[SYS_fstat]   sys_fstat,
+[SYS_chdir]   sys_chdir,
+[SYS_dup]     sys_dup,
+[SYS_getpid]  sys_getpid,
+[SYS_sbrk]    sys_sbrk,
+[SYS_sleep]   sys_sleep,
+[SYS_uptime]  sys_uptime,
+[SYS_open]    sys_open,
+[SYS_write]   sys_write,
+[SYS_mknod]   sys_mknod,
+[SYS_unlink]  sys_unlink,
+[SYS_link]    sys_link,
+[SYS_mkdir]   sys_mkdir,
+[SYS_close]   sys_close,
+[SYS_trace]   sys_trace,
+[SYS_waitx]   sys_waitx,
+[SYS_settickets]   sys_settickets,
+[SYS_setpriority]   sys_setpriority,
+[SYS_sigalarm] sys_sigalarm,
+[SYS_sigreturn] sys_sigreturn,
 };
 
-char *system_call_name[] = {
-    "",
-    "fork",
-    "exit",
-    "wait",
-    "pipe",
-    "read",
-    "kill",
-    "exec",
-    "fstat",
-    "chdir",
-    "dup",
-    "getpid",
-    "sbrk",
-    "sleep",
-    "uptime",
-    "open",
-    "write",
-    "mknod",
-    "unlink",
-    "link",
-    "mkdir",
-    "close",
-    "trace",
-    "sigalarm",
-    "sigreturn",
-    "setpriority",
+
+static char *syscall_list[28] = {
+  "",      "fork",     "exit",     "wait",         "pipe",  
+  "read",   "kill",     "exec",     "fstat",        "chdir", 
+  "dup",    "getpid",   "sbrk",     "sleep",        "uptime", 
+  "open",   "write",    "mknod",    "unlink",       "link",   
+  "mkdir",  "close",    "waitx" ,   "setpriority",  "settickets",
+  "trace",  "sigalarm", "sigreturn"
 };
 
-static int argnums[30] = {
-    1, 1, 1, 1, 3,
-    3, 1, 2, 2, 1,
-    1, 1, 1, 1, 1,
-    2, 3, 3, 1, 2,
-    1, 1, 1, 2, 0,
-    2};
+static int numargs[28] = {
+  -1,  0,  1,   1,   0,  
+  3,  2,  2,   1,   1, 
+  1,  0,  1,   1,   0, 
+  2,  3,  3,   1,   2, 
+  1,  1,  3,   2,   1,
+  1,  2,  0
+};
 
-void syscall(void)
+void
+syscall(void)
 {
   int num;
   struct proc *p = myproc();
 
   num = p->trapframe->a7;
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
-    // Use num to lookup the system call function for num, call it,
-    // and store its return value in p->trapframe->a0
+    int x = p->trapframe->a0;
     p->trapframe->a0 = syscalls[num]();
-  } else {
+    if (p->sysmask & (1 << num))
+    {
+        if(numargs[num]==1)
+            printf("%d: syscall %s (%d) -> %d\n", p->pid, syscall_list[num], x, p->trapframe->a0);
+        if(numargs[num]==2)
+            printf("%d: syscall %s (%d %d) -> %d\n", p->pid, syscall_list[num], x,p->trapframe->a1, p->trapframe->a0);
+        if(numargs[num]==3)
+            printf("%d: syscall %s (%d %d %d) -> %d\n", p->pid, syscall_list[num], x,p->trapframe->a1,p->trapframe->a2, p->trapframe->a0);
+    } 
+  } else 
+  {
     printf("%d %s: unknown sys call %d\n",
-            p->pid, p->name, num);
+        p->pid, p->name, num);
     p->trapframe->a0 = -1;
   }
 }

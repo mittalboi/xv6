@@ -91,45 +91,31 @@ sys_uptime(void)
 }
 
 uint64
-sys_strace(void)
+sys_trace(void)
 {
-  int mask = 0;
+  int mask = -1;
+
+  // getting the parameters for the syscall using argint() and checking validity
   argint(0, &mask);
-  myproc()->mask = mask;
+  myproc()->sysmask = mask;
   return 0;
 }
 
-uint64 sys_sigalarm(void)
+uint64
+sys_waitx(void)
 {
-  uint64 addr;
-  int ticks;
-
-  printf("\nsys_sigalarm\n");
-
-  argint(0, &ticks);
+  uint64 addr, addr1, addr2;
+  uint wtime, rtime;
   argaddr(0, &addr);
-
-  printf("ticks: %d\n", ticks);
-  printf("addr: %p\n", addr);
-  myproc()->ticks = ticks;
-  myproc()->handler = addr;
-
-  printf("myproc()->ticks: %d\n", myproc()->ticks);
-  printf("myproc()->handler: %p\n", myproc()->handler);
-
-  return 0;
-}
-
-uint64 sys_sigreturn(void)
-{
-  struct proc *p = myproc();
-  memmove(p->trapframe, p->alarm_tf, PGSIZE);
-
-  kfree(p->alarm_tf);
-  p->alarm_tf = 0;
-  p->alarm_on = 0;
-  p->cur_ticks = 0;
-  return p->trapframe->a0;
+  argaddr(1, &addr1); // user virtual memory
+  argaddr(2, &addr2);
+  int ret = waitx(addr, &wtime, &rtime);
+  struct proc* p = myproc();
+  if (copyout(p->pagetable, addr1,(char*)&wtime, sizeof(int)) < 0)
+    return -1;
+  if (copyout(p->pagetable, addr2,(char*)&rtime, sizeof(int)) < 0)
+    return -1;
+  return ret;
 }
 
 uint64 sys_settickets(void)
@@ -143,8 +129,36 @@ uint64 sys_settickets(void)
 
 uint64 sys_setpriority(void)
 {
-  int new_priority, pid;
-  argint(1, &new_priority);
-  argint(0, &pid);
-  return setpriority(new_priority, pid);
+  int newp, pid;
+  argint(0, &newp);
+  argint(1, &pid);
+  return setpriority(newp, pid);
+}
+
+uint64 sys_sigalarm(void)
+{
+  uint64 addr;
+  int ticks;
+
+  printf("\nsys_sigalarm\n");
+
+  argint(0, &ticks);
+  argaddr(1, &addr);
+
+  myproc()->ticks = ticks;
+  myproc()->handler = addr;
+
+  return 0;
+}
+
+uint64 sys_sigreturn(void)
+{
+  struct proc *p = myproc();
+  memmove(p->trapframe, p->alarm_tf, PGSIZE);
+
+  kfree((uint64)p->alarm_tf);
+  p->alarm_tf = 0;
+  p->alarm_on = 0;
+  p->cur_ticks = 0;
+  return p->trapframe->a0;
 }

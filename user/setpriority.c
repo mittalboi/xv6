@@ -2,45 +2,55 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 
-int to_int(char *s)
+int conversion(char *s)
 {
-    int i = 0;
-    char *temp = s;
-    while (*temp)
+    int sum = 0, n;
+    for (int i = 0; i < strlen(s); i++)
     {
-        if (*temp >= '0' && *temp <= '9')
-            i = i * 10 + *temp++ - '0';
-        else
-            return -1;
+        n = s[strlen(s) - 1 - i] - '0';
+
+        long long answer = 1, k = 0;
+        while (k < i)
+        {
+            answer *= 10;
+            k++;
+        }
+
+        sum += n * answer;
+        // printf("ola: %d", repeati);
     }
-    return i;
+    return sum;
 }
 
 int main(int argc, char *argv[])
 {
 
-    if (argc != 3)
+    if (argc >= 4 && argc <= 2)
     {
-        printf("Error: Invalid number of arguments.\n");
+        printf("Invalid number of arguments.\n");
+        exit(0);
+    }
+    int new_priority = conversion(argv[1]);
+    int pid = conversion(argv[2]);
+    if (new_priority < 0)
+    {
+        printf("Invalid priority [0,100]\n");
         exit(1);
     }
-    int new_priority = to_int(argv[1]);
-    int pid = to_int(argv[2]);
-    if (new_priority < 0 || new_priority > 100)
+    if (new_priority > 100)
     {
-        printf("Error: Priority should be in range [0,100]\n");
+        printf("Invalid priority [0,100]\n");
         exit(1);
     }
     int old_priority = setpriority(new_priority, pid);
-    if (old_priority == -1)
+    if (old_priority < 0)
     {
-        printf("Error: Process not found\n");
+        printf("Process not found\n");
         exit(1);
     }
     else
     {
-        printf("Process with PID: %d updated from priority %d to %d.\n", pid, old_priority, new_priority);
+        printf("Process PID: %d updated from priority %d to %d.\n", pid, old_priority, new_priority);
         exit(0);
     }
 }
-

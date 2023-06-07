@@ -91,8 +91,21 @@ struct proc {
   int killed;                  // If non-zero, have been killed
   int xstate;                  // Exit status to be returned to parent's wait
   int pid;                     // Process ID
+  int sysmask;                 // System call mask
 
-  int mask;                    // Mask for signal tracing
+  uint rtime;                   // How long the process ran for
+  uint ctime;                   // When was the process created 
+  uint etime;                   // When did the process exited
+  int create_time;              // Time in ticks when the process was created
+  int static_priority;          // Either 60 or provided by user
+  int dynamic_priority;         // dp = max(0,min(100,SP-niceness+5))
+  int times_chosen;             // How many times do we visit this process
+  uint time_stopped;            // Time for which the process was in stopped state
+  uint time_stopped_temp;       // To store clock ticks when the process stopped
+  uint tick_counter;
+  uint curr_thresh;
+  uint runnable_time;
+  uint niceness;
 
   uint64 handler;
   int ticks;
@@ -100,20 +113,7 @@ struct proc {
   struct trapframe *alarm_tf; // cache the trapframe when timer fires
   int alarm_on;
 
-  uint64 timecreated;
-  uint64 staticpriority;
-  uint64 dynamicpriority;
-  uint64 numberscheduled;
-  uint64 starttime;
-  uint64 runtime;
-  uint64 sleeptime;
-  uint64 stoptime;
-  uint64 totruntime;
-  uint64 niceness;
-  uint64 numberstopped;
-
-  int tickets;
-
+  uint tickets;
   // wait_lock must be held when using this:
   struct proc *parent;         // Parent process
 

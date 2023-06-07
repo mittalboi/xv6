@@ -68,8 +68,21 @@ usertrap(void)
   } else if(r_scause() == 15){
     // page fault
     tpgflt();
-  } else if((which_dev = devintr()) != 0){
-    // ok
+  }  else if((which_dev = devintr()) != 0){
+    if (which_dev == 2)
+    {
+      // Save trapframe
+
+      p->cur_ticks++;
+      if (p->ticks && p->cur_ticks >= p->ticks && p->alarm_on == 0){
+        struct trapframe *tf = kalloc();
+        memmove(tf, p->trapframe, PGSIZE);
+        p->alarm_tf = tf;
+        p->trapframe->epc = p->handler;
+        p->alarm_on = 1;
+      }
+      
+    }
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
@@ -80,8 +93,16 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
+  #ifndef FCFS
+  #ifndef PBS
+  #ifndef MLFQ
+
   if(which_dev == 2)
     yield();
+
+  #endif
+  #endif
+  #endif
 
   usertrapret();
 }
@@ -168,6 +189,7 @@ clockintr()
 {
   acquire(&tickslock);
   ticks++;
+  update_time();
   wakeup(&ticks);
   release(&tickslock);
 }
@@ -262,12 +284,12 @@ tpgflt(void)
   *p_pte = PA2PTE(mem) | PTE_U | PTE_V | PTE_W | PTE_R | PTE_X ;
   *p_pte &= ~(PTE_COW);
   sfence_vma();
-  decrement_ref_count(pa);
+  kfree((uint64)pa);
   
   // uvmunmap(p->pagetable, start_va, 1, 0);
   // decrement_ref_count(pa);
   // if(mappages(p->pagetable, start_va, PGSIZE, (uint64)mem, flags_p) != 0){
-    //kfree(mem);
+    //actualkfree(mem);
     // p->killed = 1;
     // setkilled(p);
     // goto err;

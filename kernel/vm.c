@@ -185,8 +185,7 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       panic("uvmunmap: not a leaf");
     if(do_free){
       uint64 pa = PTE2PA(*pte);
-      //kfree((void*)pa);
-      decrement_ref_count(pa);
+      kfree((uint64)pa);
     }
     *pte = 0;
   }
@@ -241,8 +240,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
     }
     memset(mem, 0, PGSIZE);
     if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_R|PTE_U|xperm) != 0){
-      //kfree(mem);
-      decrement_ref_count((uint64)(mem));
+      kfree((uint64)mem);
       uvmdealloc(pagetable, a, oldsz);
       return 0;
     }
@@ -252,7 +250,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz, int xperm)
 
 // Deallocate user pages to bring the process size from oldsz to
 // newsz.  oldsz and newsz need not be page-aligned, nor does newsz
-// need to be less than oldsz.  oldsz can be larger than the actual
+// need to be less than oldsz.  oldsz can be larger than the 
 // process size.  Returns the new process size.
 uint64
 uvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
@@ -285,8 +283,7 @@ freewalk(pagetable_t pagetable)
       panic("freewalk: leaf");
     }
   }
-  //kfree((void*)pagetable);
-  decrement_ref_count((uint64)(pagetable));
+  kfree((uint64)pagetable);
 }
 
 // Free user memory pages,

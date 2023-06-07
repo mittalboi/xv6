@@ -4,6 +4,7 @@ struct stat;
 int fork(void);
 int exit(int) __attribute__((noreturn));
 int wait(int*);
+int waitx(int*, int* /*wtime*/, int* /*rtime*/);
 int pipe(int*);
 int write(int, const void*, int);
 int read(int, void*, int);
@@ -22,11 +23,11 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-int strace(int);
+int trace(int);
+int settickets(int);
+int setpriority(int,int);
 void sigalarm(int, void (*)(void));
 void sigreturn(void);
-int settickets(int);
-int setpriority(int, int);
 
 
 // ulib.c

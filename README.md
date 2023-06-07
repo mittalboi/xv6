@@ -1,52 +1,3 @@
-xv6 is a re-implementation of Dennis Ritchie's and Ken Thompson's Unix
-Version 6 (v6).  xv6 loosely follows the structure and style of v6,
-but is implemented for a modern RISC-V multiprocessor using ANSI C.
-
-ACKNOWLEDGMENTS
-
-xv6 is inspired by John Lions's Commentary on UNIX 6th Edition (Peer
-to Peer Communications; ISBN: 1-57398-013-7; 1st edition (June 14,
-2000)).  See also https://pdos.csail.mit.edu/6.1810/, which provides
-pointers to on-line resources for v6.
-
-The following people have made contributions: Russ Cox (context switching,
-locking), Cliff Frey (MP), Xiao Yu (MP), Nickolai Zeldovich, and Austin
-Clements.
-
-We are also grateful for the bug reports and patches contributed by
-Takahiro Aoyagi, Silas Boyd-Wickizer, Anton Burtsev, carlclone, Ian
-Chen, Dan Cross, Cody Cutler, Mike CAT, Tej Chajed, Asami Doi,
-eyalz800, Nelson Elhage, Saar Ettinger, Alice Ferrazzi, Nathaniel
-Filardo, flespark, Peter Froehlich, Yakir Goaron, Shivam Handa, Matt
-Harvey, Bryan Henry, jaichenhengjie, Jim Huang, Matúš Jókay, John
-Jolly, Alexander Kapshuk, Anders Kaseorg, kehao95, Wolfgang Keller,
-Jungwoo Kim, Jonathan Kimmitt, Eddie Kohler, Vadim Kolontsov, Austin
-Liew, l0stman, Pavan Maddamsetti, Imbar Marinescu, Yandong Mao, Matan
-Shabtay, Hitoshi Mitake, Carmi Merimovich, Mark Morrissey, mtasm, Joel
-Nider, Hayato Ohhashi, OptimisticSide, Harry Porter, Greg Price, Jude
-Rich, segfault, Ayan Shafqat, Eldar Sehayek, Yongming Shen, Fumiya
-Shigemitsu, Cam Tenny, tyfkda, Warren Toomey, Stephen Tu, Rafael Ubal,
-Amane Uehara, Pablo Ventura, Xi Wang, WaheedHafez, Keiichi Watanabe,
-Nicolas Wolovick, wxdao, Grant Wu, Jindong Zhang, Icenowy Zheng,
-ZhUyU1997, and Zou Chang Wei.
-
-
-The code in the files that constitute xv6 is
-Copyright 2006-2022 Frans Kaashoek, Robert Morris, and Russ Cox.
-
-ERROR REPORTS
-
-Please send errors and suggestions to Frans Kaashoek and Robert Morris
-(kaashoek,rtm@mit.edu).  The main purpose of xv6 is as a teaching
-operating system for MIT's 6.1810, so we are more interested in
-simplifications and clarifications than new features.
-
-BUILDING AND RUNNING XV6
-
-You will need a RISC-V "newlib" tool chain from
-https://github.com/riscv/riscv-gnu-toolchain, and qemu compiled for
-riscv64-softmmu.  Once they are installed, and in your shell
-search path, you can run "make qemu".
 
 # Enhancing the OS xv6
 
@@ -124,8 +75,8 @@ We also set the alarm_on variable, indicating that the handler has been called a
 
 Here we test out the handler function and check to see if there are race conditions. There are 4 test cases and on passing the test, "Test Passed" is printed. If the test fails, "Test Failed" is printed, with the corresponding error.
 
-## Scheduling Tasks
 
+## Scheduling Tasks
 
 **Necessary changes and modifications added:**
 
@@ -214,11 +165,6 @@ In `scheduler` we do the following:
 
 ## 3. Priority Based Scheduler (PBS)
 
-#### Input Command:
-```jsx
-make qemu SCHEDULER="PBS"
-```
-
 **kernel/proc.c:**
 
 In `scheduler` we do the following:
@@ -230,5 +176,29 @@ Now just scan the process table, and schedule the appropriate process according 
 - We can keep updating dynamic_priority , niceness and times_chosen here itself.
 - The system call, setpriority() can be easily implemented by making a stub in user space, and changing the appropriate files as we did in spec 1.
 
+### Performance Analysis:
+
+#### RR:
+Average RTime: 3
+Average WTime: 103
+
+#### FCFS:
+Average RTime: 4
+Average WTime: 104
+
+#### PBS:
+Average RTime: 4
+Average WTime: 105
+
+#### LBS:
+Average RTime: 5
+Average WTime: 107
+
+**Conclusions:**
+As we see, the Round Robin Scheduler is the most efficient and the least efficient is the Lottery Based Scheduler. This is because the Round Robin Scheduler is the most fair scheduler, as it gives equal time to all the processes. The Lottery Based Scheduler is the least fair scheduler, as it gives more time to the processes with more tickets. The PBS is also a fair scheduler, but it is not as fair as the RR, as it gives more time to the processes with higher priority. The FCFS is also a fair scheduler, but it is not as fair as the RR, as it gives more time to the processes that were created earlier.
+
 ## Copy on Write Fork
 
+- Whenever we create a new child using fork(), we make the child point to the physical address of the memory instead of making a separate copy of the memory. This is done to save memory and time. But, if the child process tries to write to the memory, then we make a copy of the memory and make the child point to the new copy. This is called copy on write fork.
+
+- Each entry of the pagetable has a count variable attached to it to keep track of how many processes are sharing it at any given point of time. As soon as count falls to 0, the function kfree() is used to free the pagetable entries. 

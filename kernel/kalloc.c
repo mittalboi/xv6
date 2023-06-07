@@ -12,17 +12,18 @@
 void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
-                   // defined by kernel.ld.     
+                   // defined by kernel.ld.
+
+struct run {
+  struct run *next;
+};
+
 struct reference{
   struct spinlock lock;
   long long int count;
 };
 
 struct reference ref[PHYSTOP/PGSIZE];
-
-struct run {
-  struct run *next;
-};
 
 struct {
   struct spinlock lock;
@@ -46,7 +47,7 @@ freerange(void *pa_start, void *pa_end)
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
   for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
-    kfree(p);
+    actualkfree(p);
 }
 
 // Free the page of physical memory pointed at by pa,
@@ -54,12 +55,12 @@ freerange(void *pa_start, void *pa_end)
 // call to kalloc().  (The exception is when
 // initializing the allocator; see kinit above.)
 void
-kfree(void *pa)
+actualkfree(void *pa)
 {
   struct run *r;
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
-    panic("kfree");
+    panic("actualkfree");
 
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
@@ -82,17 +83,13 @@ kalloc(void)
 
   acquire(&kmem.lock);
   r = kmem.freelist;
+
+  acquire(&ref[(uint64)r/PGSIZE].lock);
+  ref[(uint64)r/PGSIZE].count = 1;
+  release(&ref[(uint64)r/PGSIZE].lock);
   if(r)
     kmem.freelist = r->next;
   release(&kmem.lock);
-  
-  /* if(ref[(uint64)r/PGSIZE].count != 0)
-    panic("kalloc: page is in use"); */
-  acquire(&ref[(uint64)r/PGSIZE].lock);
-  //acquire(&kmem.lock);
-  ref[(uint64)r/PGSIZE].count = 1;
-  release(&ref[(uint64)r/PGSIZE].lock);
-  //release(&kmem.lock);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
@@ -113,7 +110,7 @@ increment_ref_count(uint64 pa)
 }
 
 void
-decrement_ref_count(uint64 pa)
+kfree(uint64 pa)
 {
   if(pa > PHYSTOP)
     panic("increment_ref_count: pa > PHYSTOP");
@@ -127,5 +124,5 @@ decrement_ref_count(uint64 pa)
   
   release(&kmem.lock);
   if(ref[pa/PGSIZE].count == 0)
-    kfree((void*)pa);
+    actualkfree((void*)pa);
 }
